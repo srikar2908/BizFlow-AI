@@ -2,7 +2,7 @@
 
 ## Status
 
-The repository contains a backend webhook client but no n8n workflow export. The instructions below define the required interface; they do not claim that a Google Sheets integration is configured or live. No real webhook has been contacted for this work.
+The repository contains a backend webhook client but no n8n workflow export. The user reports that the existing n8n workflow and Google Sheets row creation are working, including a recent filename mapping correction. This repository update did not connect to the user's n8n instance or independently verify that configuration. The interface and mappings below document the backend payload contract.
 
 ## Backend configuration
 
@@ -22,7 +22,7 @@ Keep these values out of frontend variables, source control and logs. Do not put
 2. Before processing, compare `X-BizFlow-Webhook-Secret` against an n8n credential/secret store value. Reject unauthorized requests before any side effect. Do not echo the secret.
 3. Validate the JSON fields and ensure `approved_by_user` is exactly `true`; the API remains responsible for verifying the persisted owner approval.
 4. Persistently deduplicate `idempotency_key` before side effects. A repeated key must return the original outcome and must not append another row or send another message. In-memory workflow state is insufficient.
-5. Complete the agreed business action. Google Sheets append is not yet represented by a checked-in workflow; if added, store the idempotency key in the sheet or durable dedupe store and make the append safe under retries.
+5. Complete the approved action and append the workflow log row using the mappings in `WORKFLOW_EXECUTION.md`. Keep the idempotency key in the sheet and preferably a durable n8n-side dedupe store.
 6. Respond synchronously with a JSON completion object only after all required actions succeed:
 
 ```json
@@ -45,7 +45,7 @@ For the complete placeholder payload and response schema, see [WORKFLOW_EXECUTIO
 ## Safe test procedure
 
 1. Configure a dedicated non-production n8n instance and a test-only secret.
-2. Use synthetic workflow/document payloads and a disposable test sheet if a Sheets action is later added.
+2. Use synthetic workflow/document payloads and a disposable test sheet.
 3. Verify invalid secret and missing approval are rejected before side effects.
 4. Send the same idempotency key more than once and verify only one durable side effect occurs and the same result is returned.
 5. Simulate a delayed response and confirm BizFlow displays `unknown` and does not automatically resend.
@@ -59,7 +59,7 @@ Do not perform real email sends during automated or initial integration tests. A
 - Use TLS, restrict webhook reachability where practical, rotate the shared secret, and keep the URL/secret in managed backend/n8n secret stores.
 - Configure persistent n8n storage and backups according to the n8n deployment; persist dedupe records for at least the maximum retry/replay window.
 - Ensure workflow error paths do not return a false success response. Preserve an operator-visible execution record for reconciliation.
-- Before enabling live Sheets logging, define column mapping, retention/access permissions, dedupe key storage, and recovery behavior. This repository does not provide those settings or a workflow export.
+- Confirm column mapping, retention/access permissions, dedupe key storage, and recovery behavior in the user's n8n instance before production changes. This repository does not provide an export of that workflow.
 - Reconcile stale `running` and `unknown` workflow rows against n8n execution history before any manual retry.
 
 ## Common failure interpretation
@@ -71,4 +71,4 @@ Do not perform real email sends during automated or initial integration tests. A
 | `running` for an unusually long time | Process may have stopped after claiming or while n8n ran | Reconcile manually; the API has no lease/reaper |
 | Database schema compatibility error | Required workflow metadata columns are absent/incompatible | Review migration history/schema; apply reviewed `0002` before deployment |
 
-An importable workflow JSON is not included because the actual Sheets behavior, credentials, n8n version and dedupe implementation are not present to validate. No credentials should be embedded in such an export.
+An importable workflow JSON is not included because the user's existing Sheets flow, credentials, n8n version and dedupe implementation cannot be exported or verified from this repository. No credentials should be embedded in an exported workflow.

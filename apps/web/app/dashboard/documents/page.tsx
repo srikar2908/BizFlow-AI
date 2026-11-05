@@ -107,7 +107,7 @@ type WorkflowPreviewResponse = {
   status: string;
 };
 
-const acceptedFileTypes = ".pdf,.docx,.txt,.md,.csv";
+const acceptedFileTypes = ".pdf,.docx,.txt,.md";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -149,6 +149,7 @@ function metadataList(values: string[] | undefined) {
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
+  const [filter, setFilter] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -214,6 +215,10 @@ export default function DocumentsPage() {
 
     if (!selectedFile) {
       setErrorMessage("Select a document before uploading.");
+      return;
+    }
+    if (!/\.(pdf|docx|txt|md)$/i.test(selectedFile.name)) {
+      setErrorMessage("Choose a PDF, DOCX, TXT, or Markdown file.");
       return;
     }
 
@@ -442,7 +447,7 @@ export default function DocumentsPage() {
               type="file"
             />
             <p className="mt-2 truncate text-sm text-slate-500">
-              {selectedFile ? selectedFile.name : "PDF, DOCX, TXT, MD, or CSV"}
+              {selectedFile ? selectedFile.name : "PDF, DOCX, TXT, or Markdown"}
             </p>
           </div>
 
@@ -481,8 +486,10 @@ export default function DocumentsPage() {
       ) : null}
 
       {!isLoading && !errorMessage && documents.length > 0 ? (
-        <div className="overflow-hidden border border-slate-200 bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
+        <div className="space-y-3">
+          <label className="block"><span className="sr-only">Search documents</span><input className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm sm:max-w-sm" type="search" placeholder="Search filenames and summaries" value={filter} onChange={event => setFilter(event.target.value)} /></label>
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+          <table className="min-w-[720px] divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50">
               <tr>
                 <th className="px-4 py-3 text-left font-semibold text-slate-700">Filename</th>
@@ -492,7 +499,7 @@ export default function DocumentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {documents.map((document) => {
+              {documents.filter(document => `${document.filename} ${document.summary ?? ""}`.toLowerCase().includes(filter.trim().toLowerCase())).map((document) => {
                 const isIngesting = ingestingDocumentId === document.id;
                 const isExtracting = extractingDocumentId === document.id;
                 const isSummarizing = summarizingDocumentId === document.id;
@@ -662,6 +669,8 @@ export default function DocumentsPage() {
               })}
             </tbody>
           </table>
+          </div>
+          {documents.filter(document => `${document.filename} ${document.summary ?? ""}`.toLowerCase().includes(filter.trim().toLowerCase())).length === 0 ? <p className="rounded-lg bg-white p-6 text-center text-sm text-slate-500">No documents match that search.</p> : null}
         </div>
       ) : null}
     </section>

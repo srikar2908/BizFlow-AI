@@ -4,6 +4,8 @@
 **Scope:** Phase 1 repository inspection only. No application code, migrations, secrets, or external services were changed or exercised.
 **Evidence standard:** “Implemented” means code paths exist in this checkout. The audit did not run tests or verify live Supabase, Gemini, n8n, Google Sheets, or Langfuse accounts. Claims in README/progress about prior live verification are recorded as repository claims, not independently confirmed results.
 
+**Status note (2026-11-05):** This document captures the initial audit before the workspace dashboard/settings slice. See the Phase 2 entry in `docs/progress.md` for subsequent changes. The feature table and placeholder findings below are historical audit findings, not a description of the current dashboard UI.
+
 ## Executive summary
 
 BizFlow AI is an existing Next.js + FastAPI application, not an empty scaffold. It has Supabase-backed authentication, private document uploads, PDF/DOCX/TXT/MD parsing, Gemini embedding and generation services, vector retrieval and cited answers, document metadata/summary/proposal/email draft generation, workflow preview/approval/execution code, and Langfuse instrumentation. Automated backend tests cover these slices, with CI workflows for backend and frontend checks.

@@ -7,6 +7,7 @@ import httpx
 
 from app.core.config import Settings
 from app.schemas.workflows import WorkflowRun, WorkflowType
+from app.services.activity_service import ActivityService
 from app.services.n8n_service import (
     N8nService,
     N8nServiceError,
@@ -35,6 +36,7 @@ class WorkflowService:
         self.supabase_anon_key = settings.supabase_anon_key
         self.n8n_service = n8n_service or N8nService(settings)
         self.observability = observability_service or ObservabilityService(settings)
+        self.activity = ActivityService(settings)
 
     async def create_preview(
         self,
@@ -75,7 +77,7 @@ class WorkflowService:
     ) -> WorkflowRun:
         # The database predicate is the transition guard. Competing requests
         # cannot both change the same pending row to approved.
-        return await self._conditional_transition(
+        approved = await self._conditional_transition(
             user_id=user_id,
             access_token=access_token,
             workflow_id=workflow_id,
@@ -88,6 +90,13 @@ class WorkflowService:
             },
             conflict_message="Workflow is no longer pending and cannot be approved.",
         )
+        await self.activity.record(
+            user_id=user_id,
+            document_id=approved.document_id,
+            event_type="workflow_approved",
+            filename=approved.document_filename,
+        )
+        return approved
 
     async def list_workflows(
         self,
@@ -175,6 +184,12 @@ class WorkflowService:
                 "Another request claimed this execution, or the workflow state changed."
             ),
         )
+        await self.activity.record(
+            user_id=user_id,
+            document_id=running.document_id,
+            event_type="workflow_execution_started",
+            filename=running.document_filename,
+        )
 
         try:
             with self.observability.trace(
@@ -215,10 +230,18 @@ class WorkflowService:
                 },
                 conflict_message="Workflow state changed while recording n8n failure.",
             )
+            await self.activity.record(
+                user_id=user_id,
+                document_id=workflow.document_id,
+                event_type=(
+                    "workflow_failed" if terminal_status == "failed" else "workflow_unknown"
+                ),
+                filename=workflow.document_filename,
+            )
             raise WorkflowServiceError(str(exc), status_code=exc.status_code) from exc
 
         completed_at = _now_iso()
-        return await self._conditional_transition(
+        completed = await self._conditional_transition(
             user_id=user_id,
             access_token=access_token,
             workflow_id=workflow_id,
@@ -236,6 +259,13 @@ class WorkflowService:
                 "could be saved. Reconcile the execution before retrying."
             ),
         )
+        await self.activity.record(
+            user_id=user_id,
+            document_id=completed.document_id,
+            event_type="workflow_completed",
+            filename=completed.document_filename,
+        )
+        return completed
 
     async def _conditional_transition(
         self,
@@ -260,6 +290,8 @@ class WorkflowService:
             params["approved_by_user"] = f"eq.{str(expected_approved).lower()}"
         if expected_idempotency_key is not None:
             params["idempotency_key"] = f"eq.{expected_idempotency_key}"
+
+        update = {**update, "updated_at": _now_iso()}
 
         async with httpx.AsyncClient(timeout=20.0) as client:
             response = await client.patch(

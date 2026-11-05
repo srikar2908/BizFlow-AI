@@ -1,12 +1,12 @@
 # Database Schema
 
 **Updated:** 2026-11-05
-**Source examined:** the single checked-in migration, `supabase/migrations/0001_initial_schema.sql`, plus current backend queries/schemas.
-**Live status:** not inspected. The database connected to the running application may differ from this migration. Confirm actual relations, columns, constraints, indexes, policies, grants, extensions, RPC definitions and migration history before applying any SQL.
+**Source examined:** checked-in migrations `0001_initial_schema.sql`, `0002_workflow_execution_metadata.sql`, `0003_activity_events.sql`, plus current backend queries/schemas.
+**Live status:** not inspected. The database connected to the running application may differ from these migrations. The two additive migrations are proposals until separately applied and verified. Confirm actual relations, columns, constraints, indexes, policies, grants, extensions, RPC definitions and migration history before applying SQL.
 
 This document separates the local schema definition from application usage and proposed schema evolution. It is not evidence that the live Supabase project has this schema.
 
-## Existing local schema
+## Existing base schema (0001 definition; live presence unverified)
 
 ### `public.documents`
 
@@ -33,7 +33,7 @@ Defined columns: `id`, `user_id`, nullable `document_id` referencing `documents(
 
 The backend reads/writes these columns. It also joins `documents(filename)` for display. The Pydantic schema exposes workflow ID, document ID/name, workflow type, status, input/output payloads, approval boolean, error text and timestamps. It accepts a `sent` status in addition to pending/approved/running/completed/failed, although the main documented flow does not use it. The database defines no status check constraint.
 
-Current execution result metadata is merged into `output_payload.n8n_response`; there is no dedicated execution result or n8n execution ID field. `approved_by_user` is a boolean, not an authenticated approver identity or approval timestamp.
+The base schema has no approval/execution timestamps or dedicated execution result or n8n execution ID field. Migration `0002_workflow_execution_metadata.sql` proposes nullable fields for those values plus an idempotency key; these columns must not be assumed to exist in the live project until verified.
 
 ### `public.model_events`
 
@@ -61,12 +61,12 @@ The migration defines `public.match_document_chunks(query_embedding vector(3072)
 - Older docs used `chat_sessions`/`chat_messages`, `workflow_requests`, `metadata_extractions`, and `proposals`. The migration actually creates `conversations`, `messages`, `workflow_runs`, and `model_events`; generated business outputs currently live in document columns/JSON. Do not create the old planned relations without a reviewed product need.
 - The migration uses `mime_type`, while older docs called this `content_type`; it has `file_hash` and `storage_path`; no `storage_bucket` column exists.
 - Backend routes and service code use the migration's `workflow_runs`, not `workflow_requests`.
-- Current workflow schema has no `approved_at`, `execution_started_at`, `completed_at`, `n8n_execution_id`, `idempotency_key`, or dedicated `execution_result`.
+- The base schema has no workflow lifecycle fields. Migration `0002` adds `approved_at`, `execution_started_at`, `completed_at`, `n8n_execution_id`, `idempotency_key`, and `execution_result`; the application requires those fields for its current workflow implementation.
 - The local migration's `CREATE TABLE IF NOT EXISTS` statements do not reconcile an already-existing table's shape. `document_chunks` is an exception: it is dropped then created, so rerunning can erase all chunks and cascade to dependent objects.
 
-## Proposed workflow schema extension (not yet applied)
+## Additive workflow schema extension (migration file; live apply status unverified)
 
-The proposed migration `supabase/migrations/0002_workflow_execution_metadata.sql` adds nullable columns to existing `workflow_runs`:
+Migration file `supabase/migrations/0002_workflow_execution_metadata.sql` adds nullable columns to existing `workflow_runs`:
 
 - `approved_at timestamptz`
 - `execution_started_at timestamptz`
@@ -77,6 +77,12 @@ The proposed migration `supabase/migrations/0002_workflow_execution_metadata.sql
 
 Old rows remain valid because the fields are nullable and have no backfill requirement. A partial unique index on `(user_id,idempotency_key)` when the key is non-null provides a per-owner uniqueness boundary for new idempotency keys. JSONB can hold a validated result, but the database type alone does not validate a response contract; backend validation is still required. The migration does not add state constraints or RLS/grant changes. It must not be applied until the preflight checks in `docs/MIGRATION_SAFETY.md` confirm the live table and expected columns.
 
+## Proposed dashboard activity ledger (0003; not applied here)
+
+`supabase/migrations/0003_activity_events.sql` adds a forward-only `activity_events` table for successful document operations and workflow lifecycle actions. It stores owner, optional document reference, event type, filename-only details, and occurrence time. It adds a user/time index and owner-scoped SELECT policy. Inserts are backend-only via `service_role`; authenticated users receive no insert/update/delete grant. There is deliberately no backfill because exact historical generation and workflow event times are unavailable. Dashboard activity starts only after the migration and backend logging are deployed. Workflow status totals and recent document/workflow lists remain sourced from their existing tables.
+
+Before applying 0003, confirm the migration is unapplied, `documents` and `auth.users` exist, RLS/grants behave as expected, and `service_role` is used only on the API server. `CREATE TABLE IF NOT EXISTS` does not validate a conflicting existing relation's shape.
+
 ## Further live checks before production
 
 1. Inspect Supabase migration history and actual schema; compare every column/index/constraint/policy/grant/function against this local definition.
@@ -86,4 +92,4 @@ Old rows remain valid because the fields are nullable and have no backfill requi
 5. Confirm workflow rows' current values/status vocabulary and any existing execution metadata before selecting a backfill or transition strategy.
 6. Check table size, active traffic, and lock tolerance before index creation.
 
-No live database inspection or migration execution was performed for this update.
+No live database inspection or migration execution was performed for this update. Migration files do not prove that any migration is present on the connected Supabase project.

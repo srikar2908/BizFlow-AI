@@ -14,6 +14,7 @@ from app.schemas.documents import (
     DocumentSummaryResponse,
     DocumentUploadResponse,
 )
+from app.services.activity_service import ActivityService
 from app.services.document_email_draft_service import (
     DocumentEmailDraftService,
     DocumentEmailDraftServiceError,
@@ -35,7 +36,7 @@ from app.services.ingestion_service import IngestionService, IngestionServiceErr
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
-ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".md", ".csv"}
+ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".md"}
 
 
 def get_document_service(
@@ -91,7 +92,7 @@ def _validate_filename(filename: str | None) -> str:
     if _file_extension(clean_filename) not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unsupported file type. Allowed types: pdf, docx, txt, md, csv.",
+            detail="Unsupported file type. Allowed types: pdf, docx, txt, md.",
         )
 
     return clean_filename
@@ -129,6 +130,13 @@ async def ingest_document(
     except IngestionServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
+    await ActivityService(get_settings()).record(
+        user_id=current_user.id,
+        document_id=document_id,
+        event_type="document_ingested",
+        filename=None,
+    )
+
     return DocumentIngestResponse(
         id=result.document_id,
         status="completed",
@@ -143,11 +151,18 @@ async def extract_document_metadata(
     service: Annotated[DocumentMetadataService, Depends(get_metadata_service)],
 ) -> DocumentMetadataResponse:
     try:
-        return await service.extract_metadata(
+        result = await service.extract_metadata(
             document_id=document_id,
             user_id=current_user.id,
             access_token=current_user.access_token,
         )
+        await ActivityService(get_settings()).record(
+            user_id=current_user.id,
+            document_id=document_id,
+            event_type="metadata_extracted",
+            filename=result.filename,
+        )
+        return result
     except DocumentMetadataServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
@@ -159,11 +174,18 @@ async def generate_document_summary(
     service: Annotated[DocumentSummaryService, Depends(get_summary_service)],
 ) -> DocumentSummaryResponse:
     try:
-        return await service.generate_summary(
+        result = await service.generate_summary(
             document_id=document_id,
             user_id=current_user.id,
             access_token=current_user.access_token,
         )
+        await ActivityService(get_settings()).record(
+            user_id=current_user.id,
+            document_id=document_id,
+            event_type="summary_generated",
+            filename=result.filename,
+        )
+        return result
     except DocumentSummaryServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
@@ -175,11 +197,18 @@ async def generate_document_proposal(
     service: Annotated[DocumentProposalService, Depends(get_proposal_service)],
 ) -> DocumentProposalResponse:
     try:
-        return await service.generate_proposal(
+        result = await service.generate_proposal(
             document_id=document_id,
             user_id=current_user.id,
             access_token=current_user.access_token,
         )
+        await ActivityService(get_settings()).record(
+            user_id=current_user.id,
+            document_id=document_id,
+            event_type="proposal_generated",
+            filename=result.filename,
+        )
+        return result
     except DocumentProposalServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
@@ -191,11 +220,18 @@ async def generate_document_email_draft(
     service: Annotated[DocumentEmailDraftService, Depends(get_email_draft_service)],
 ) -> DocumentEmailDraftResponse:
     try:
-        return await service.generate_email_draft(
+        result = await service.generate_email_draft(
             document_id=document_id,
             user_id=current_user.id,
             access_token=current_user.access_token,
         )
+        await ActivityService(get_settings()).record(
+            user_id=current_user.id,
+            document_id=document_id,
+            event_type="email_draft_generated",
+            filename=result.filename,
+        )
+        return result
     except DocumentEmailDraftServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
@@ -213,7 +249,7 @@ async def upload_document(
     file: Annotated[UploadFile, File(...)],
 ) -> DocumentUploadResponse:
     filename = _validate_filename(file.filename)
-    content = await file.read()
+    content = await file.read(settings.max_upload_bytes + 1)
 
     if len(content) > settings.max_upload_bytes:
         raise HTTPException(
@@ -222,13 +258,21 @@ async def upload_document(
         )
 
     try:
-        return await service.upload_document(
+        result = await service.upload_document(
             user_id=current_user.id,
             access_token=current_user.access_token,
             filename=filename,
             mime_type=file.content_type,
             content=content,
         )
+        if not result.duplicate:
+            await ActivityService(settings).record(
+                user_id=current_user.id,
+                document_id=result.id,
+                event_type="document_uploaded",
+                filename=result.filename,
+            )
+        return result
     except DocumentServiceError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

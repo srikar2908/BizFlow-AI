@@ -2,7 +2,7 @@
 
 ## Scope and status
 
-This document describes the backend contract implemented in this repository. Automated tests use mocked HTTP/database boundaries. No live Supabase schema, n8n endpoint, or Google Sheets workflow has been tested. The repository does not contain an independently verifiable n8n workflow export; configure the remote workflow to match this contract before enabling production calls.
+This document describes the backend contract implemented in this repository. Automated tests use mocked HTTP/database boundaries. The user reports their live n8n workflow and Sheets append were tested successfully; this checkout has not independently connected to that n8n endpoint or inspected its node mappings. The repository contains no workflow export.
 
 ## State transitions
 
@@ -73,9 +73,24 @@ The synchronous success response must be valid JSON with exactly this supported 
 
 The returned workflow ID must match the request. The API records `execution_id` as `n8n_execution_id` and `result` in `execution_result`. A 2xx response by itself is not success. An asynchronous acknowledgement such as `accepted` is not implemented: without a callback/polling endpoint it is treated as an unknown outcome. Agree on this contract with the n8n owner before configuring the webhook.
 
+## Google Sheets column mapping and replay limits
+
+The workflow request carries `workflow_id`, `workflow_type`, `document_id`, `input_payload`, `output_payload`, `approved_by_user`, and `idempotency_key`. The original filename is `{{$json.body.input_payload.filename}}` when n8n receives the webhook body under `body`; if the Webhook node is configured to expose the parsed body directly, use `{{$json.input_payload.filename}}`. Confirm the actual incoming node shape in the n8n execution inspector. Suggested columns are:
+
+| Sheet column | Source |
+| --- | --- |
+| workflow_id | `workflow_id` |
+| workflow_type | `workflow_type` |
+| filename | `input_payload.filename` |
+| idempotency_key | `idempotency_key` |
+| execution_status | the workflow's final status, normally `completed` |
+| executed_at | n8n execution timestamp (ISO-8601) |
+
+Google Sheets append is not an idempotent transaction. A timeout after append but before a successful webhook response can leave a row while BizFlow marks the result unknown; replay can create a duplicate. A retry after a known pre-delivery failure also needs the same key. To deduplicate robustly, use a durable n8n-side execution ledger keyed uniquely by `idempotency_key`, atomically claim that key before appending, and return the previously recorded result for repeats. If only Sheets is available, search for an exact key before append and serialize executions, but recognize that lookup-then-append can race and is not an atomic uniqueness guarantee. Reconcile unknown BizFlow runs against n8n and the Sheet before any replay. Preserve the existing response contract and do not infer success solely from a row lookup.
+
 ## Database prerequisite
 
-`supabase/migrations/0002_workflow_execution_metadata.sql` must be reviewed and applied before deploying this implementation. The code selects and writes its new columns and returns an explicit schema-compatibility error when PostgREST rejects the fields. It has not been applied or tested against Supabase. Do not rerun `0001_initial_schema.sql`.
+`supabase/migrations/0002_workflow_execution_metadata.sql` must be confirmed present with compatible columns before deploying this implementation. The code selects and writes its new columns and returns an explicit schema-compatibility error when PostgREST rejects the fields. Remote apply status is unknown; no live Supabase test was performed. Do not rerun `0001_initial_schema.sql`.
 
 ## Current verification and remaining work
 

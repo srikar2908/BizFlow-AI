@@ -30,6 +30,8 @@ type RagAnswerResponse = {
   citations: RagCitation[];
 };
 
+type ChatMessage = { question: string; answer: string; citations: RagCitation[] };
+
 function formatSimilarity(value: number) {
   return `${Math.round(value * 100)}%`;
 }
@@ -47,6 +49,7 @@ export default function ChatPage() {
   const [activeAction, setActiveAction] = useState<"answer" | "search" | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -101,6 +104,7 @@ export default function ChatPage() {
       });
       setAnswer(response.answer);
       setCitations(response.citations);
+      setMessages((current) => [...current, { question: cleanQuery, answer: response.answer, citations: response.citations }]);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Unable to generate an answer.");
     } finally {
@@ -114,7 +118,7 @@ export default function ChatPage() {
       <div>
         <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Chat</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Ask questions grounded in your ingested documents.
+          Ask questions grounded in your ingested documents. This conversation stays in this page and is not saved.
         </p>
       </div>
 
@@ -127,7 +131,7 @@ export default function ChatPage() {
             className="min-w-0 flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-500"
             id="rag-query"
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search your ingested documents"
+            placeholder="For example: What are the client’s key priorities?"
             type="search"
             value={query}
           />
@@ -151,7 +155,7 @@ export default function ChatPage() {
 
       {errorMessage ? (
         <ErrorState
-          actionLabel="Try again"
+          actionLabel="Dismiss"
           description={errorMessage}
           onAction={() => setErrorMessage(null)}
           title="Chat unavailable"
@@ -171,10 +175,12 @@ export default function ChatPage() {
 
       {!isLoading && !errorMessage && answer ? (
         <article className="border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Answer</h2>
+          <h2 className="text-lg font-semibold text-slate-950">Latest answer</h2>
           <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{answer}</p>
         </article>
       ) : null}
+
+      {messages.length > 0 ? <section aria-label="Current page conversation" className="space-y-3"><h2 className="text-lg font-semibold text-slate-950">This page session</h2>{messages.map((message, index) => <article key={`${index}-${message.question}`} className="space-y-3 rounded-xl border border-slate-200 bg-white p-5"><p className="text-sm font-semibold text-slate-900">You asked</p><p className="text-sm text-slate-700">{message.question}</p><p className="text-sm font-semibold text-slate-900">BizFlow AI</p><p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{message.answer}</p>{message.citations.length > 0 ? <p className="text-xs text-slate-500">Sources: {message.citations.map(citation => `${citation.filename} (chunk ${citation.chunk_index})`).join(" · ")}</p> : <p className="text-xs text-amber-800">No document sources were retrieved for this response.</p>}</article>)}</section> : null}
 
       {!isLoading && !errorMessage && answer && citations.length > 0 ? (
         <div className="space-y-3">

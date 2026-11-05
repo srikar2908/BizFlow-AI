@@ -34,7 +34,9 @@ BizFlow AI is a production-style full-stack Agentic RAG Automation Platform for 
 
 ## Current State
 
-The repository contains FastAPI and Next.js foundations with Supabase auth, protected backend routes, and an initial document upload/listing slice. Users can upload original PDF, DOCX, TXT, MD, and CSV files; the backend validates size/type, hashes bytes, detects duplicates per user, stores originals in Supabase Storage, and inserts pending document rows. RAG ingestion, extraction, embeddings, chat, proposal generation, and workflow execution have not started.
+The repository has a functioning FastAPI and Next.js application with Supabase auth, PDF/DOCX/TXT/MD upload and ingestion, Gemini embeddings and grounded RAG answers, metadata/summary/proposal/email draft generation, and approval-gated n8n workflow execution. The workflow service uses conditional owner-scoped transitions, persisted idempotency keys, and strict n8n completion validation. The user reports their n8n/Google Sheets integration works; this checkout has not independently contacted it.
+
+The dashboard and settings UI now call authenticated backend endpoints. Dashboard activity is recorded forward-only by additive migration `0003_activity_events.sql`; remote database schema and migration history remain unverified. Chat messages remain page-local and are not persisted. CSV is deliberately rejected because ingestion does not implement CSV extraction. The model router remains a stub while the implementation currently uses Gemini directly.
 
 ## Key Design Boundaries
 

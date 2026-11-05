@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.health import router as health_router
 from app.api.routes_auth import router as auth_router
+from app.api.routes_dashboard import router as dashboard_router
 from app.api.routes_documents import router as documents_router
 from app.api.routes_rag import router as rag_router
 from app.api.routes_workflows import router as workflows_router
@@ -31,6 +32,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(health_router)
     app.include_router(auth_router)
+    app.include_router(dashboard_router)
     app.include_router(documents_router)
     app.include_router(rag_router)
     app.include_router(workflows_router)

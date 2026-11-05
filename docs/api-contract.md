@@ -2,7 +2,7 @@
 
 ## Status
 
-Auth, health, document listing, and original document upload are implemented. RAG ingestion, extraction, chat, proposal generation, and workflow routes remain planned.
+The routes below reflect the current implementation in `apps/api/app/api`. Errors use FastAPI's `{ "detail": "..." }` response shape; the nested `error` shape below remains a future contract and must not be assumed by clients.
 
 ## Contract Rules
 
@@ -43,27 +43,34 @@ Do not expose provider stack traces, secrets, SQL details, or internal webhook U
 | `GET` | `/me` | Implemented | Return authenticated Supabase user identity |
 | `GET` | `/documents` | Implemented | List current user's documents |
 | `POST` | `/documents/upload` | Implemented | Validate and store original document upload |
-| `GET` | `/documents/{document_id}` | Planned | Get document metadata and ingestion status |
-| `POST` | `/documents/{document_id}/ingest` | Planned | Start ingestion for an uploaded document |
-| `POST` | `/chat/sessions` | Planned | Create a chat session scoped to the user |
-| `POST` | `/chat/sessions/{session_id}/messages` | Planned | Ask a RAG question and receive cited answer |
-| `POST` | `/documents/{document_id}/extract-metadata` | Planned | Extract structured metadata from a document |
-| `POST` | `/proposals` | Planned | Generate a proposal draft from user input and retrieved context |
-| `POST` | `/workflow-requests` | Planned | Prepare an external workflow request for review |
-| `POST` | `/workflow-requests/{request_id}/approve` | Planned | Approve and trigger an n8n workflow |
+| `GET` | `/dashboard` | Implemented | Return authenticated user's overview and persisted recent activity |
+| `GET` | `/settings` | Implemented | Return account and safe service-configuration presence flags |
+| `POST` | `/documents/{document_id}/ingest` | Implemented | Ingest an uploaded document |
+| `POST` | `/documents/{document_id}/metadata` | Implemented | Extract structured metadata |
+| `POST` | `/documents/{document_id}/summary` | Implemented | Generate a summary |
+| `POST` | `/documents/{document_id}/proposal` | Implemented | Generate a proposal draft |
+| `POST` | `/documents/{document_id}/email-draft` | Implemented | Generate an email draft (does not send it) |
+| `POST` | `/rag/search` | Implemented | Search the current user's document chunks |
+| `POST` | `/rag/answer` | Implemented | Generate a document-grounded answer with citations |
+| `POST` | `/workflows/preview` | Implemented | Persist a workflow preview |
+| `GET` | `/workflows` | Implemented | List the current user's workflow runs |
+| `POST` | `/workflows/{workflow_id}/approve` | Implemented | Approve a pending workflow |
+| `POST` | `/workflows/{workflow_id}/execute` | Implemented | Execute an explicitly approved workflow via n8n |
+| `GET` | `/documents/{document_id}` | Planned | Get one document's details and ingestion status |
+| `POST` | `/chat/sessions` | Planned | Persist a chat session (current chat history is page-local only) |
 
 ## Document Upload
 
 `POST /documents/upload` accepts a multipart `file` field. The backend:
 
 - Requires Supabase auth.
-- Allows only `pdf`, `docx`, `txt`, `md`, and `csv` filename extensions.
+- Allows only `pdf`, `docx`, `txt`, and `md` filename extensions.
 - Enforces `MAX_UPLOAD_BYTES`, defaulting to 20MB.
 - Computes a SHA-256 hash over the uploaded bytes.
 - Detects duplicates per authenticated user by `user_id + file_hash`.
 - Stores the original file in the `documents` Supabase Storage bucket.
 - Inserts a `documents` row with status `pending`.
-- Does not extract text, create embeddings, or start RAG ingestion.
+- The UI separately calls the ingestion route; upload does not ingest automatically.
 
 ## Citation Requirements
 

@@ -30,8 +30,8 @@ export function AppSidebar() {
         <Link className="text-lg font-semibold tracking-tight text-slate-950" href="/">
           BizFlow AI
         </Link>
-        <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 md:mt-3 md:inline-block">
-          Shell
+        <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800 md:mt-3 md:inline-block">
+          Workspace
         </span>
       </div>
       <nav className="mt-5 flex gap-2 overflow-x-auto md:flex-col md:overflow-visible">

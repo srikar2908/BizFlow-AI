@@ -1,5 +1,40 @@
 # Progress
 
+## Dashboard availability follow-up (2026-11-05)
+
+- Removed the dashboard's dependency on workflow lifecycle columns from migration `0002`; it now queries base workflow fields only.
+- Made the `activity_events` read optional. If migration `0003` is absent or its policy denies reads, core dashboard counts and recent records still load and the activity section explains that it is unavailable.
+- Replaced the generic migration error for core query failures with a sanitized HTTP status and guidance to check API config, grants and RLS. No Supabase error body or credentials are returned/logged.
+- Added a regression test for loading dashboard core data when the activity table returns 404.
+- Verification: 95 backend tests passed; Ruff, Ruff format check, Mypy, frontend ESLint, TypeScript check and production build passed. No live Supabase request was made.
+
+## Phase 2: Workspace UI and dashboard data (2026-11-05)
+
+### Implemented in this checkout
+
+- Added authenticated `GET /dashboard` and `GET /settings` routes. Dashboard data is queried with the verified user's access token and explicit `user_id` filters; settings returns configuration presence only.
+- Replaced the dashboard placeholder with live counts, recent documents/workflows, persisted activity, retryable error state, and workspace actions.
+- Added additive migration `0003_activity_events.sql` and best-effort backend event writes for successful document actions and workflow lifecycle events. The event feed has no speculative backfill.
+- Replaced Settings placeholder with account/configuration status and secret-free indicators.
+- Improved document search and horizontal overflow behavior, restricted upload selection to formats with extraction support, and bounded backend upload reads to configured max plus one byte.
+- Added current-page conversational history (not persisted), citation/source indication, workflow execution metadata display, and a product landing page update.
+- Updated API, database, migration-safety and workflow docs, including the Google Sheets filename mapping and append/deduplication limitations.
+
+### Database and external service boundary
+
+- `0003` is additive and unapplied by this work. It preserves all existing rows/chunks; no historical activity timestamps are fabricated.
+- No SQL was executed against Supabase. No n8n, Google Sheets, email or other live external workflow was triggered. The user reports their n8n/Sheets flow is working; it was not independently verified from this checkout.
+- Core dashboard totals and recent records use the base schema; the activity feed is optional and degrades gracefully if `0003` is absent. The workflow list/execution routes still require `0002`. Check remote migration history/schema and obtain approval before any apply.
+
+### Verification
+
+- Backend: 94 passed using a process-only `BIZFLOW_DEFAULT_CHAT_MODEL=gemini-2.5-flash` override. One Starlette/httpx deprecation warning remains.
+- Backend Ruff check, Ruff format check, and Mypy passed.
+- Frontend ESLint, TypeScript `npx tsc --noEmit`, and production build passed.
+- Local browser review covered landing page at default and 390px viewport widths (no horizontal overflow) and the login form at mobile width. Authenticated screens were not visually loaded because no login session was used; no credentials were read or submitted.
+- `git diff --check` passed. SQL review found the existing destructive `DROP TABLE` only in `0001_initial_schema.sql`; that migration was not edited or run. New `0003` uses additive CREATE/GRANT/POLICY/INDEX statements.
+- No live Supabase/n8n/Google Sheets calls were made by the verification run.
+
 ## Phase 1: Workflow Reliability and Idempotent Execution (2026-11-05)
 
 ### Implemented

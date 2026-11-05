@@ -27,12 +27,15 @@ BizFlow AI turns uploaded documents into reviewable business actions:
 
 - Supabase email/password auth with backend Bearer token verification.
 - Auth-protected document upload and listing.
+- User-scoped dashboard with real document/workflow totals, recent records and a forward-only activity timeline.
+- Settings page with account information and safe configuration-presence indicators.
 - Private Supabase Storage bucket for original document files.
 - File validation, upload size limits, SHA-256 hashing, and duplicate detection.
 - TXT, MD, DOCX, and PDF ingestion.
 - Gemini embeddings using `gemini-embedding-001` with 3072-dimensional vectors.
 - Authenticated RAG chunk search scoped to the current user.
 - Grounded RAG answer generation using Gemini 2.5 Flash with citations.
+- Page-local chat history for the current view; chat conversations are not persisted across reloads.
 - Structured metadata extraction from ingested document chunks.
 - Concise and detailed document summaries with recommended actions.
 - Proposal draft generation for completed documents.
@@ -47,7 +50,7 @@ BizFlow AI turns uploaded documents into reviewable business actions:
 
 ```text
 apps/web              Next.js dashboard
-  app/dashboard       Documents, Chat, Workflows, Settings
+  app/dashboard       Overview, Documents, Chat, Workflows, Settings
   src/lib             Supabase and API clients
 
 apps/api              FastAPI backend
@@ -176,6 +179,8 @@ Prerequisites:
 - Gemini API key
 - Optional: n8n workflow webhook and Langfuse project
 
+Before deploying the current workflow service, review additive migrations `0002_workflow_execution_metadata.sql` and `0003_activity_events.sql` against the target Supabase project's actual migration history and schema. These files do not prove remote apply status. Never rerun `0001_initial_schema.sql` on a data-bearing project. Follow [migration safety guidance](docs/MIGRATION_SAFETY.md); the app does not apply migrations.
+
 Install backend dependencies:
 
 ```bash
@@ -270,6 +275,7 @@ Frontend:
 ```bash
 cd apps/web
 npm run lint
+npx tsc --noEmit
 npm run build
 ```
 

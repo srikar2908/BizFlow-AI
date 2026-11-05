@@ -24,6 +24,11 @@ type WorkflowRun = {
   output_payload: Record<string, unknown>;
   approved_by_user: boolean;
   execution_result?: Record<string, unknown> | null;
+  approved_at?: string | null;
+  execution_started_at?: string | null;
+  completed_at?: string | null;
+  n8n_execution_id?: string | null;
+  idempotency_key?: string | null;
   error_message?: string | null;
   created_at: string;
   updated_at?: string | null;
@@ -279,6 +284,14 @@ export default function WorkflowsPage() {
                     {workflow.error_message}
                   </div>
                 ) : null}
+                <dl className="mt-4 grid gap-3 rounded-lg bg-slate-50 p-4 text-xs sm:grid-cols-2 lg:grid-cols-3">
+                  {workflow.approved_at ? <div><dt className="font-medium text-slate-500">Approved</dt><dd className="mt-1 text-slate-800">{formatDate(workflow.approved_at)}</dd></div> : null}
+                  {workflow.execution_started_at ? <div><dt className="font-medium text-slate-500">Execution started</dt><dd className="mt-1 text-slate-800">{formatDate(workflow.execution_started_at)}</dd></div> : null}
+                  {workflow.completed_at ? <div><dt className="font-medium text-slate-500">Finished</dt><dd className="mt-1 text-slate-800">{formatDate(workflow.completed_at)}</dd></div> : null}
+                  {workflow.n8n_execution_id ? <div className="min-w-0"><dt className="font-medium text-slate-500">n8n execution ID</dt><dd className="mt-1 break-all font-mono text-slate-800">{workflow.n8n_execution_id}</dd></div> : null}
+                  {workflow.idempotency_key ? <div className="min-w-0 sm:col-span-2"><dt className="font-medium text-slate-500">Idempotency key</dt><dd className="mt-1 break-all font-mono text-slate-800">{workflow.idempotency_key}</dd></div> : null}
+                </dl>
+                {workflow.execution_result ? <PayloadCard title="Execution result" value={workflow.execution_result} /> : null}
                 {workflow.status === "running" ? (
                   <p className="mt-4 text-sm text-slate-600">
                     This run may still be active. If the request timed out, check n8n before

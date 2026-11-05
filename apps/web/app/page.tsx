@@ -1,9 +1,9 @@
 import Link from "next/link";
 
-const principles = [
-  "Private document workspace",
-  "Cited retrieval answers",
-  "Human-approved automation",
+const productFeatures = [
+  ["Document intelligence", "Upload business documents, extract structured metadata, and draft summaries, proposals, and follow-up emails."],
+  ["Grounded answers", "Search your ingested files and review source citations beside each answer."],
+  ["Reviewed automation", "Preview and approve workflow actions before they reach the configured n8n integration."],
 ];
 
 export default function Home() {
@@ -36,8 +36,7 @@ export default function Home() {
               BizFlow AI
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-8 text-slate-600">
-              A secure RAG and automation foundation for document-heavy business workflows,
-              proposal drafting, and reviewed external actions.
+              Turn business documents into useful answers and reviewable actions, with human approval before external workflows run.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
@@ -50,7 +49,7 @@ export default function Home() {
                 className="rounded-md border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-800 transition hover:border-slate-500"
                 href="/dashboard"
               >
-                View shell
+                Open workspace
               </Link>
             </div>
           </div>
@@ -58,21 +57,21 @@ export default function Home() {
           <div className="border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-5 flex items-center justify-between border-b border-slate-200 pb-4">
               <div>
-                <p className="text-sm font-semibold text-slate-950">MVP flow</p>
-                <p className="text-sm text-slate-500">Foundation only</p>
+                <p className="text-sm font-semibold text-slate-950">Built for document workflows</p>
+                <p className="text-sm text-slate-500">Your private workspace</p>
               </div>
               <span className="rounded-md bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                Planned
+                Review first
               </span>
             </div>
             <div className="space-y-3">
-              {principles.map((principle) => (
+              {productFeatures.map(([title, description]) => (
                 <div
-                  className="flex items-center justify-between border border-slate-200 px-4 py-3 text-sm"
-                  key={principle}
+                  className="border border-slate-200 px-4 py-3"
+                  key={title}
                 >
-                  <span className="font-medium text-slate-800">{principle}</span>
-                  <span className="text-slate-400">Queued</span>
+                  <p className="font-medium text-slate-800">{title}</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
                 </div>
               ))}
             </div>

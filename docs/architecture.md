@@ -11,6 +11,7 @@ flowchart LR
 
   API --> Auth[Supabase Auth]
   API --> DB[(Supabase Postgres + pgvector)]
+  API -->|service-role append-only event writes| Events[(activity_events)]
   API --> Storage[Private Supabase Storage bucket]
   API --> GeminiEmbed[Gemini embeddings]
   API --> GeminiChat[Gemini 2.5 Flash]
@@ -28,6 +29,7 @@ Core boundaries:
 - The frontend authenticates users and calls the backend with Supabase access tokens.
 - The backend validates identity, enforces ownership, coordinates document/RAG/workflow logic, and keeps secrets server-side.
 - Supabase stores users, documents, chunks, workflow runs, and private uploaded files.
+- Dashboard document/workflow data is read under the verified user's access token; successful document and workflow actions append minimal activity records through the backend service role. The activity table is added by migration `0003` and is forward-only.
 - Gemini powers embeddings and text generation.
 - n8n executes only approved workflow payloads.
 - Langfuse receives best-effort traces for AI and workflow operations.
@@ -40,6 +42,7 @@ Responsibilities:
 
 - Supabase browser auth and session handling.
 - Dashboard routes for documents, chat, workflows, and settings.
+- Dashboard overview with user-scoped records and persisted activity; chat history is only held for the current page session.
 - Authenticated API requests through `src/lib/api-client.ts`.
 - Document upload, ingestion actions, metadata/summary/proposal/email generation actions.
 - Chat page for RAG search and grounded answer generation.
@@ -59,6 +62,8 @@ Primary routers:
 
 - `GET /health`
 - `GET /me`
+- `GET /dashboard`
+- `GET /settings`
 - `GET /documents`
 - `POST /documents/upload`
 - `POST /documents/{document_id}/ingest`

@@ -1,10 +1,10 @@
 # Database Migration Safety Plan
 
-**Status:** Planning only. No SQL has been executed against Supabase. The new migration in `supabase/migrations/0002_workflow_execution_metadata.sql` is unapplied and requires explicit live-schema preflight and user approval before deployment.
+**Status:** Planning only. No SQL has been executed against Supabase. Migrations `0002_workflow_execution_metadata.sql` and `0003_activity_events.sql` are additive local migration files; whether either is applied to a remote project is unknown. They require live-schema preflight and explicit user approval before deployment.
 
 ## Findings from checked-in migrations
 
-There is one migration in the repository baseline, `0001_initial_schema.sql`. The current working tree contains a local edit to that file that disables a vector index; this audit did not alter it. A second file, `0002_workflow_execution_metadata.sql`, is proposed by this phase and is additive.
+The repository includes the destructive base migration `0001_initial_schema.sql` plus additive files `0002_workflow_execution_metadata.sql` and `0003_activity_events.sql`. This run does not establish which files have been applied remotely.
 
 ### Destructive or behavior-replacing SQL in `0001`
 
@@ -39,6 +39,8 @@ Although the SQL is additive and uses `IF NOT EXISTS`, it assumes `public.workfl
 8. **Review exact SQL:** review `0002` against the confirmed live schema. Make no edit to or replay of `0001` as part of this change.
 9. **Approval gate:** present the target, preflight diff, backup status, exact SQL, maintenance window and rollback decision to the user. Apply only after explicit approval.
 
+For `0003`, additionally verify that the table name is unused or exactly compatible, `documents.id` is the expected UUID key, `auth.users.id` exists, and the `service_role` is confined to the backend. The migration adds a new table and index and enables RLS; it makes no changes to existing document/chunk/workflow rows. It does not backfill old events. Review the migration SQL and inspect the live migration history before choosing whether it is needed.
+
 ## Apply and verification plan (future; not performed)
 
 After approval, apply the reviewed migration once through the project's normal Supabase migration mechanism, with output captured. Then perform read-only checks that the six columns have the intended types, the partial unique index exists and is valid, old workflow row counts/statuses are unchanged, and document/chunk counts are unchanged. Check PostgREST schema cache if the new fields are later consumed through REST. Test insert/update behavior only in a controlled test environment; do not send live n8n requests as part of a schema migration check.
@@ -50,6 +52,7 @@ The schema fields alone do **not** make execution idempotent. Backend code must 
 - **Before apply:** do not change the live project. Fix the proposed migration or abandon it.
 - **If apply fails:** capture the error and inspect actual state before retrying. Do not rerun `0001`. Confirm whether the migration runner rolled back the failed transaction; do not assume it did.
 - **After successful additive apply:** preferred rollback is application rollback/feature disable while leaving the new nullable columns and index in place. This preserves any data that may have been written to the fields.
+- For `0003`, prefer disabling activity display/writes and retaining the new table. Dropping it would erase activity records written after deployment. Only consider a table rollback after exporting and verifying all event rows, and with explicit owner approval.
 - **Index-only rollback:** dropping the new unique index may be considered only if no running code depends on uniqueness and an approved incident/recovery decision requires it. This weakens idempotency protection.
 - **Column rollback:** do not drop the new columns as a routine down migration. Dropping them would destroy approval/execution history written after rollout. If removal is ever required, first export and verify all affected values, obtain explicit approval, and prepare a separately reviewed recovery plan.
 - **Data/schema mismatch:** restore from the verified backup/PITR only under the database owner's incident process. Never reset, truncate, or rebuild the chunk table.
