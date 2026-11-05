@@ -1,0 +1,38 @@
+Client Brief: ABC Logistics AI Assistant
+
+Company:
+ABC Logistics is a regional logistics provider that coordinates deliveries for small and midsize retailers. The team manages inbound shipment requests, delivery status updates, customer questions, and internal handoffs across email, spreadsheets, and a lightweight CRM.
+
+Current Problem:
+ABC Logistics receives a high volume of repetitive customer questions about shipment status, delivery windows, missed deliveries, invoice follow-ups, and required documentation. Support staff spend too much time searching across emails and spreadsheets before responding. Managers also lack a reliable way to turn customer requests into follow-up actions.
+
+Business Goal:
+ABC Logistics wants an AI-assisted workflow that can help the operations team understand client requests faster, draft accurate follow-up responses, and prepare structured handoff notes for internal review.
+
+Desired Solution:
+The client is interested in a document-grounded AI assistant that can:
+- Answer questions from uploaded client briefs and operational documents.
+- Summarize customer requirements and missing information.
+- Draft proposal or follow-up emails for review.
+- Prepare workflow payloads that can later be approved and sent into automation tools.
+- Log approved workflow activity for operational tracking.
+
+Important Requirements:
+- The assistant must only answer from approved uploaded documents.
+- The system must not send emails without human approval.
+- External automations must be reviewable before execution.
+- The first workflow should log approved activity to Google Sheets.
+- The team prefers a phased rollout before connecting CRM or Gmail actions.
+
+Missing Information:
+- Preferred implementation timeline.
+- Exact CRM used by the operations team.
+- Whether Google Sheets should be the long-term reporting destination.
+- Who should approve outgoing workflow actions.
+- Which customer request categories should be prioritized first.
+
+Recommended Next Steps:
+- Confirm the CRM and reporting tools.
+- Define the first three customer request categories.
+- Approve a pilot workflow that logs reviewed AI outputs to Google Sheets.
+- Review generated email drafts before connecting Gmail automation.
